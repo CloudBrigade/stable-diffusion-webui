@@ -20,7 +20,8 @@ def get_cuda_device_string():
     if shared.cmd_opts.device_id is not None:
         return f"cuda:{shared.cmd_opts.device_id}"
 
-    return "cuda"
+    # return "cuda"
+    return "hpu"
 
 
 def get_optimal_device_name():
@@ -30,7 +31,8 @@ def get_optimal_device_name():
     if has_mps():
         return "mps"
 
-    return "cpu"
+    # return "cpu"
+    return "hpu"
 
 
 def get_optimal_device():
@@ -99,11 +101,14 @@ def autocast(disable=False):
     if dtype == torch.float32 or shared.cmd_opts.precision == "full":
         return contextlib.nullcontext()
 
-    return torch.autocast("cuda")
+    # return torch.autocast("cuda")
+    # return torch.autocast("hpu", dtype=torch.bfloat16, enabled=True)
+    return torch.autocast("hpu", enabled=True)
 
 
 def without_autocast(disable=False):
-    return torch.autocast("cuda", enabled=False) if torch.is_autocast_enabled() and not disable else contextlib.nullcontext()
+    # return torch.autocast("cuda", enabled=False) if torch.is_autocast_enabled() and not disable else contextlib.nullcontext()
+    return torch.autocast("hpu", enabled=False) if torch.is_autocast_enabled() and not disable else contextlib.nullcontext()
 
 
 class NansException(Exception):
@@ -114,6 +119,7 @@ def test_for_nans(x, where):
     if shared.cmd_opts.disable_nan_check:
         return
 
+    # print(x)
     if not torch.all(torch.isnan(x)).item():
         return
 

@@ -1,6 +1,7 @@
 import threading
 import time
 from collections import defaultdict
+import habana_frameworks.torch as htorch
 
 import torch
 
@@ -78,12 +79,24 @@ class MemUsageMonitor(threading.Thread):
             self.data["free"] = free
             self.data["total"] = total
 
-            torch_stats = torch.cuda.memory_stats(self.device)
-            self.data["active"] = torch_stats["active.all.current"]
-            self.data["active_peak"] = torch_stats["active_bytes.all.peak"]
-            self.data["reserved"] = torch_stats["reserved_bytes.all.current"]
-            self.data["reserved_peak"] = torch_stats["reserved_bytes.all.peak"]
-            self.data["system_peak"] = total - self.data["min_free"]
+            #torch_stats = torch.cuda.memory_stats(self.device)
+            torch_stats = htorch.hpu.memory_stats()
+            # {'Limit': 32374775808, 'InUse': 12222592, 'MaxInUse': 12222592, 'NumAllocs': 2, 'NumFrees': 0, 'ActiveAllocs': 2, 'MaxAllocSize': 4014080, 'TotalSystemAllocs': 3, 'TotalSystemFrees': 0, 'TotalActiveAllocs': 3}
+            self.data["active"] = torch_stats["InUse"]
+            self.data["active_peak"] = torch_stats["MaxInUse"]
+            self.data["reserved"] = torch_stats["InUse"]
+            self.data["reserved_peak"] = torch_stats["MaxInUse"]
+            self.data["system_peak"] = total - self.data["Limit"]
+            #self.data["active"] = 0
+            #self.data["active_peak"] = 0
+            #self.data["reserved"] = 0
+            #self.data["reserved_peak"] = 0
+            #self.data["system_peak"] = 0
+            #self.data["active"] = torch_stats["active.all.current"]
+            #self.data["active_peak"] = torch_stats["active_bytes.all.peak"]
+            #self.data["reserved"] = torch_stats["reserved_bytes.all.current"]
+            #self.data["reserved_peak"] = torch_stats["reserved_bytes.all.peak"]
+            #self.data["system_peak"] = total - self.data["min_free"]
 
         return self.data
 

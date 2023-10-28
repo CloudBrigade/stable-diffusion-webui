@@ -1,84 +1,173 @@
 import torch
+import habana_frameworks.torch.hpu.random as htrandom
 
-from modules import devices, rng_philox, shared
-
+from modules import devices, rng_philox, shared, habana
+#from habana import HPUGenerator
 
 def randn(seed, shape, generator=None):
-    """Generate a tensor with random numbers from a normal distribution using seed.
-
-    Uses the seed parameter to set the global torch seed; to generate more with that seed, use randn_like/randn_without_seed."""
-
+    """Generate a tensor with random numbers from a normal distribution using seed."""
     manual_seed(seed)
 
     if shared.opts.randn_source == "NV":
         return torch.asarray((generator or nv_rng).randn(shape), device=devices.device)
 
-    if shared.opts.randn_source == "CPU" or devices.device.type == 'mps':
+    elif shared.opts.randn_source == "HPU":
+        return torch.asarray(hpu_rng.randn(shape), device=devices.device)
+        # return torch.randn(shape, device=devices.device, generator=(generator or hpu_rng))
+
+    elif shared.opts.randn_source == "CPU" or devices.device.type == 'mps':
         return torch.randn(shape, device=devices.cpu, generator=generator).to(devices.device)
 
     return torch.randn(shape, device=devices.device, generator=generator)
 
 
 def randn_local(seed, shape):
-    """Generate a tensor with random numbers from a normal distribution using seed.
-
-    Does not change the global random number generator. You can only generate the seed's first tensor using this function."""
+    """Generate a tensor with random numbers from a normal distribution using seed."""
+    local_device = devices.cpu if shared.opts.randn_source == "CPU" or devices.device.type == 'mps' else devices.device
 
     if shared.opts.randn_source == "NV":
         rng = rng_philox.Generator(seed)
         return torch.asarray(rng.randn(shape), device=devices.device)
 
-    local_device = devices.cpu if shared.opts.randn_source == "CPU" or devices.device.type == 'mps' else devices.device
+    elif shared.opts.randn_source == "HPU":
+        local_generator = habana.HPUGenerator().manual_seed(seed)
+        return torch.randn(shape, device=local_device, generator=local_generator).to(devices.device)
+
     local_generator = torch.Generator(local_device).manual_seed(int(seed))
     return torch.randn(shape, device=local_device, generator=local_generator).to(devices.device)
 
 
 def randn_like(x):
-    """Generate a tensor with random numbers from a normal distribution using the previously initialized genrator.
-
-    Use either randn() or manual_seed() to initialize the generator."""
-
+    """Generate a tensor with random numbers from a normal distribution using the previously initialized generator."""
     if shared.opts.randn_source == "NV":
         return torch.asarray(nv_rng.randn(x.shape), device=x.device, dtype=x.dtype)
 
-    if shared.opts.randn_source == "CPU" or x.device.type == 'mps':
+    elif shared.opts.randn_source == "HPU":
+        return torch.randn_like(x, generator=hpu_rng).to(x.device)
+
+    elif shared.opts.randn_source == "CPU" or x.device.type == 'mps':
         return torch.randn_like(x, device=devices.cpu).to(x.device)
 
     return torch.randn_like(x)
 
-
 def randn_without_seed(shape, generator=None):
-    """Generate a tensor with random numbers from a normal distribution using the previously initialized genrator.
-
+    """Generate a tensor with random numbers from a normal distribution using the previously initialized generator.
     Use either randn() or manual_seed() to initialize the generator."""
 
     if shared.opts.randn_source == "NV":
         return torch.asarray((generator or nv_rng).randn(shape), device=devices.device)
 
-    if shared.opts.randn_source == "CPU" or devices.device.type == 'mps':
+    elif shared.opts.randn_source == "HPU":
+        return torch.asarray(hpu_rng.randn(shape), device=devices.device)
+        # return torch.randn(shape, device=devices.device, generator=(generator or hpu_rng))
+
+    elif shared.opts.randn_source == "CPU" or devices.device.type == 'mps':
         return torch.randn(shape, device=devices.cpu, generator=generator).to(devices.device)
 
     return torch.randn(shape, device=devices.device, generator=generator)
 
-
 def manual_seed(seed):
     """Set up a global random number generator using the specified seed."""
+    seed = int(seed)
 
     if shared.opts.randn_source == "NV":
         global nv_rng
         nv_rng = rng_philox.Generator(seed)
-        return
-
-    torch.manual_seed(seed)
-
+    elif shared.opts.randn_source == "HPU":
+        global hpu_rng
+        hpu_rng = rng_philox.Generator(seed)
+        # hpu_rng = habana.HPUGenerator().manual_seed(seed)
+    else:
+        torch.manual_seed(seed)
 
 def create_generator(seed):
+    seed = int(seed)
+
     if shared.opts.randn_source == "NV":
         return rng_philox.Generator(seed)
+    elif shared.opts.randn_source == "HPU":
+        generator = habana.HPUGenerator()
+        return generator.manual_seed(seed)
+    else:
+        device = devices.cpu if shared.opts.randn_source == "CPU" or devices.device.type == 'mps' else devices.device
+        generator = torch.Generator(device=device).manual_seed(seed)
+        return generator
 
-    device = devices.cpu if shared.opts.randn_source == "CPU" or devices.device.type == 'mps' else devices.device
-    generator = torch.Generator(device).manual_seed(int(seed))
-    return generator
+#def randn(seed, shape, generator=None):
+#    """Generate a tensor with random numbers from a normal distribution using seed.
+#
+#    Uses the seed parameter to set the global torch seed; to generate more with that seed, use randn_like/randn_without_seed."""
+#
+#    manual_seed(seed)
+#
+#    if shared.opts.randn_source == "NV":
+#        return torch.asarray((generator or nv_rng).randn(shape), device=devices.device)
+#
+#    if shared.opts.randn_source == "CPU" or devices.device.type == 'mps':
+#        return torch.randn(shape, device=devices.cpu, generator=generator).to(devices.device)
+#
+#    return torch.randn(shape, device=devices.device, generator=generator)
+#
+#
+#def randn_local(seed, shape):
+#    """Generate a tensor with random numbers from a normal distribution using seed.
+#
+#    Does not change the global random number generator. You can only generate the seed's first tensor using this function."""
+#
+#    if shared.opts.randn_source == "NV":
+#        rng = rng_philox.Generator(seed)
+#        return torch.asarray(rng.randn(shape), device=devices.device)
+#
+#    local_device = devices.cpu if shared.opts.randn_source == "CPU" or devices.device.type == 'mps' else devices.device
+#    local_generator = torch.Generator(local_device).manual_seed(int(seed))
+#    return torch.randn(shape, device=local_device, generator=local_generator).to(devices.device)
+#
+#
+#def randn_like(x):
+#    """Generate a tensor with random numbers from a normal distribution using the previously initialized genrator.
+#
+#    Use either randn() or manual_seed() to initialize the generator."""
+#
+#    if shared.opts.randn_source == "NV":
+#        return torch.asarray(nv_rng.randn(x.shape), device=x.device, dtype=x.dtype)
+#
+#    if shared.opts.randn_source == "CPU" or x.device.type == 'mps':
+#        return torch.randn_like(x, device=devices.cpu).to(x.device)
+#
+#    return torch.randn_like(x)
+#
+#
+#def randn_without_seed(shape, generator=None):
+#    """Generate a tensor with random numbers from a normal distribution using the previously initialized genrator.
+#
+#    Use either randn() or manual_seed() to initialize the generator."""
+#
+#    if shared.opts.randn_source == "NV":
+#        return torch.asarray((generator or nv_rng).randn(shape), device=devices.device)
+#
+#    if shared.opts.randn_source == "CPU" or devices.device.type == 'mps':
+#        return torch.randn(shape, device=devices.cpu, generator=generator).to(devices.device)
+#
+#    return torch.randn(shape, device=devices.device, generator=generator)
+#
+#def manual_seed(seed):
+#    """Set up a global random number generator using the specified seed."""
+#
+#    if shared.opts.randn_source == "NV":
+#        global nv_rng
+#        nv_rng = rng_philox.Generator(seed)
+#        return
+#
+#    torch.manual_seed(seed)
+#
+#
+#def create_generator(seed):
+#    if shared.opts.randn_source == "NV":
+#        return rng_philox.Generator(seed)
+#
+#    device = devices.cpu if shared.opts.randn_source == "CPU" or devices.device.type == 'mps' else devices.device
+#    generator = torch.Generator(device).manual_seed(int(seed))
+#    return generator
 
 
 # from https://discuss.pytorch.org/t/help-regarding-slerp-function-for-generative-model-sampling/32475/3

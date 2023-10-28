@@ -6,6 +6,11 @@ import time
 from modules import timer
 from modules import initialize_util
 from modules import initialize
+import habana_frameworks.torch.gpu_migration
+import habana_frameworks.torch.core as htcore
+#import habana_frameworks.torch as htorch
+#import torch.nn as nn
+#import torch.nn.functional as F
 
 startup_timer = timer.startup_timer
 startup_timer.record("launcher")
