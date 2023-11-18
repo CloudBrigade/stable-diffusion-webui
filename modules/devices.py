@@ -5,6 +5,8 @@ from functools import lru_cache
 import torch
 from modules import errors, shared
 
+import habana_frameworks.torch.hpu as hthpu
+
 if sys.platform == "darwin":
     from modules import mac_specific
 
@@ -20,19 +22,25 @@ def get_cuda_device_string():
     if shared.cmd_opts.device_id is not None:
         return f"cuda:{shared.cmd_opts.device_id}"
 
-    # return "cuda"
-    return "hpu"
+    return "cuda"
 
+def get_hpu_device_string():
+    if shared.cmd_opts.device_id is not None:
+        return f"hpu:{shared.cmd_opts.device_id}"
+
+    return "hpu"
 
 def get_optimal_device_name():
     if torch.cuda.is_available():
         return get_cuda_device_string()
 
+    if hthpu.is_available():
+        return get_hpu_device_string()
+
     if has_mps():
         return "mps"
 
-    # return "cpu"
-    return "hpu"
+    return "cpu"
 
 
 def get_optimal_device():
@@ -53,6 +61,9 @@ def torch_gc():
             torch.cuda.empty_cache()
             torch.cuda.ipc_collect()
 
+    if hthpu.is_available():
+        return
+
     if has_mps():
         mac_specific.torch_mps_gc()
 
@@ -72,6 +83,7 @@ def enable_tf32():
 errors.run(enable_tf32, "Enabling TF32")
 
 cpu: torch.device = torch.device("cpu")
+hpu: torch.device = torch.device("hpu")
 device: torch.device = None
 device_interrogate: torch.device = None
 device_gfpgan: torch.device = None
@@ -101,14 +113,15 @@ def autocast(disable=False):
     if dtype == torch.float32 or shared.cmd_opts.precision == "full":
         return contextlib.nullcontext()
 
-    # return torch.autocast("cuda")
+    if shared.cmd_opts.use_hpu:
     # return torch.autocast("hpu", dtype=torch.bfloat16, enabled=True)
-    return torch.autocast("hpu", enabled=True)
+        return torch.autocast("hpu", enabled=True)
+
+    return torch.autocast("cuda")
 
 
 def without_autocast(disable=False):
-    # return torch.autocast("cuda", enabled=False) if torch.is_autocast_enabled() and not disable else contextlib.nullcontext()
-    return torch.autocast("hpu", enabled=False) if torch.is_autocast_enabled() and not disable else contextlib.nullcontext()
+    return torch.autocast("cuda", enabled=False) if torch.is_autocast_enabled() and not disable else contextlib.nullcontext()
 
 
 class NansException(Exception):
