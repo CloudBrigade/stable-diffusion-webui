@@ -85,12 +85,12 @@ def create_generator(seed):
 
     if shared.opts.randn_source == "NV":
         return rng_philox.Generator(seed)
-    elif shared.opts.randn_source == "HPU":
-        generator = habana.HPUGenerator()
-        return generator.manual_seed(seed)
+    #elif shared.opts.randn_source == "HPU":
+    #    generator = habana.HPUGenerator()
+    #    return generator.manual_seed(seed)
     else:
         device = devices.cpu if shared.opts.randn_source == "CPU" or devices.device.type == 'mps' else devices.device
-        generator = torch.Generator(device=device).manual_seed(seed)
+        generator = torch.Generator(device=devices.cpu).manual_seed(seed)
         return generator
 
 #def randn(seed, shape, generator=None):

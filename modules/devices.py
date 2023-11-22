@@ -31,11 +31,11 @@ def get_hpu_device_string():
     return "hpu"
 
 def get_optimal_device_name():
-    if torch.cuda.is_available():
-        return get_cuda_device_string()
-
     if hthpu.is_available():
         return get_hpu_device_string()
+
+    if torch.cuda.is_available():
+        return get_cuda_device_string()
 
     if has_mps():
         return "mps"
@@ -55,14 +55,13 @@ def get_device_for(task):
 
 
 def torch_gc():
+    if hthpu.is_available():
+        return
 
     if torch.cuda.is_available():
         with torch.cuda.device(get_cuda_device_string()):
             torch.cuda.empty_cache()
             torch.cuda.ipc_collect()
-
-    if hthpu.is_available():
-        return
 
     if has_mps():
         mac_specific.torch_mps_gc()
