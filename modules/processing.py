@@ -33,7 +33,7 @@ from ldm.models.diffusion.ddpm import LatentDepth2ImageDiffusion
 
 from einops import repeat, rearrange
 from blendmodes.blend import blendLayers, BlendType
-
+from modules.habana import DeviceRunner
 
 # some of those options should not be changed at all because they would break the model, so I removed them from options.
 opt_C = 4
@@ -747,6 +747,15 @@ def process_images(p: StableDiffusionProcessing) -> Processed:
 
 def process_images_inner(p: StableDiffusionProcessing) -> Processed:
     """this is the main loop that both txt2img and img2img use; it calls func_init once inside all the scopes and func_sample once per batch"""
+    # Habana HPU specific modifications
+    if p.device == "hpu":
+        for _, param in p.model.named_parameters():
+            param.data = param.data.to(torch.bfloat16)
+        os.environ["CUSTOM_SOFTMAX_FLAVOR"] = 1
+
+        device = torch.device(p.device)
+        runner = DeviceRunner(device, p.use_hpu_graph)  # Assuming p.use_hpu_graph is a property in StableDiffusionProcessing
+        p.model = runner.prepare_model(p.model)  # Assuming prepare_model is the method to adapt the model for HPU
 
     if isinstance(p.prompt, list):
         assert(len(p.prompt) > 0)

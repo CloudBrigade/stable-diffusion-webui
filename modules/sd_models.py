@@ -19,6 +19,7 @@ from modules import paths, shared, modelloader, devices, script_callbacks, sd_va
 from modules.timer import Timer
 import tomesd
 
+import modules.devices
 from modules.habana import DeviceRunner
 
 model_dir = "Stable-diffusion"
@@ -133,7 +134,7 @@ except Exception:
 
 def setup_model():
     os.makedirs(model_path, exist_ok=True)
-    if torch.device() == 'hpu':
+    if devices.dtype == 'hpu':
         device_runner = DeviceRunner(device='hpu', use_hpu_graph=True)
         device_runner.setup()
         os.environ['PT_HPU_AUTOCAST_LOWER_PRECISION_OPS_LIST'] = model_path + 'ops_fp16.txt'
