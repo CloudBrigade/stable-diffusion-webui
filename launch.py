@@ -27,7 +27,7 @@ start = launch_utils.start
 
 def main():
     if args.enable_trace:
-        sys.setprofile(tracefunc)
+        sys.setprofile(launch_utils.profile_calls)
 
     if args.dump_sysinfo:
         filename = launch_utils.dump_sysinfo()

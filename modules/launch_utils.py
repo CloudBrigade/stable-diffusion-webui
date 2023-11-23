@@ -456,3 +456,27 @@ def tracefunc(frame, event, arg, indent=[0]):
         print("<" + "-" * indent[0], "exit function", frame.f_code.co_name)
         indent[0] -= 2
     return tracefunc
+
+def is_installed_module(filename):
+    """
+    Determine if the module is an installed package.
+    Checks if the file is within the site-packages or dist-packages directories.
+    """
+    return 'site-packages' in filename or 'dist-packages' in filename
+
+def profile_calls(frame, event, arg):
+    """
+    Profile function that logs function calls.
+    Excludes function calls from installed modules.
+    """
+    if event != 'call':
+        return
+
+    co = frame.f_code
+    func_name = co.co_name
+    filename = co.co_filename
+
+    if is_installed_module(filename):
+        return
+
+    print(f'Call to {func_name} in {filename}:{frame.f_lineno}')
