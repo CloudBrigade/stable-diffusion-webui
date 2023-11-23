@@ -1,4 +1,5 @@
 import collections
+import os
 import os.path
 import sys
 import gc
@@ -17,6 +18,8 @@ from ldm.util import instantiate_from_config
 from modules import paths, shared, modelloader, devices, script_callbacks, sd_vae, sd_disable_initialization, errors, hashes, sd_models_config, sd_unet, sd_models_xl, cache, extra_networks, processing, lowvram, sd_hijack
 from modules.timer import Timer
 import tomesd
+
+from modules.habana import DeviceRunner
 
 model_dir = "Stable-diffusion"
 model_path = os.path.abspath(os.path.join(paths.models_path, model_dir))
@@ -130,7 +133,11 @@ except Exception:
 
 def setup_model():
     os.makedirs(model_path, exist_ok=True)
-
+    if torch.device() == 'hpu':
+        device_runner = DeviceRunner(device='hpu', use_hpu_graph=True)
+        device_runner.setup()
+        os.environ['PT_HPU_AUTOCAST_LOWER_PRECISION_OPS_LIST'] = model_path + 'ops_fp16.txt'
+        os.environ['PT_HPU_AUTOCAST_FP32_OPS_LIST'] = model_path + 'ops_bf32.txt'
     enable_midas_autodownload()
 
 

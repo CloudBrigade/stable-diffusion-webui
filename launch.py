@@ -1,4 +1,5 @@
 from modules import launch_utils
+import sys
 
 args = launch_utils.args
 python = launch_utils.python
@@ -25,6 +26,9 @@ start = launch_utils.start
 
 
 def main():
+    if args.enable_trace:
+        sys.setprofile(tracefunc)
+
     if args.dump_sysinfo:
         filename = launch_utils.dump_sysinfo()
 

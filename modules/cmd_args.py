@@ -18,6 +18,7 @@ parser.add_argument("--skip-prepare-environment", action='store_true', help="lau
 parser.add_argument("--skip-install", action='store_true', help="launch.py argument: skip installation of packages")
 parser.add_argument("--dump-sysinfo", action='store_true', help="launch.py argument: dump limited sysinfo file (without information about extensions, options) to disk and quit")
 parser.add_argument("--loglevel", type=str, help="log level; one of: CRITICAL, ERROR, WARNING, INFO, DEBUG", default=None)
+parser.add_argument("--enable-trace", action='store_true', help="enable python function call tracing. Handy for extending functionality.")
 parser.add_argument("--do-not-download-clip", action='store_true', help="do not download CLIP model even if it's not included in the checkpoint")
 parser.add_argument("--data-dir", type=str, default=os.path.dirname(os.path.dirname(os.path.realpath(__file__))), help="base path where all user data is stored")
 parser.add_argument("--config", type=str, default=sd_default_config, help="path to config which constructs model",)
